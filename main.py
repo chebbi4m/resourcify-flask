@@ -1,4 +1,6 @@
-import time
+from operator import eq, ne
+from re import sub
+import random
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 import string
@@ -15,7 +17,7 @@ import yaml
 
 app = Flask(__name__)
 api = Api(app)
-config = yaml.safe_load(open(r'database.yaml'))
+config = yaml.safe_load(open(r'resourcify\database.yaml'))
 client = MongoClient(config['uri'])
 db = client['Resourcify']
 CORS (app)
@@ -93,6 +95,7 @@ def print_date_time():
                     
                 for i in getCreatorName:
                     creatorName = i.text
+                link = link . replace("https://comidoc.net/udemy/" , "https://www.udemy.com/course/")
                 
 
                 couponDict = {
@@ -103,6 +106,7 @@ def print_date_time():
                     'price' : price,
                     'couponType' : couponType,
                     'coupon' : coupons,
+                    'link' : link,
                     'udemyId' : udemyId
                 }
                     
@@ -158,6 +162,7 @@ def getCoupons():
         coupon = data['coupon']
         couponType = data['couponType']
         udemyId = data['udemyId']
+        link = data['link']
         dataDict = {
                     "name": title,
                     "description": description,
@@ -166,6 +171,7 @@ def getCoupons():
                     "price": price,
                     "coupon": coupon,
                     "couponType":couponType,
+                    "link" : link,
                     "udemyId": udemyId
             }
         dataJson.append(dataDict)
@@ -184,6 +190,7 @@ def get100OffCoupons():
         price = data['price']
         coupon = data['coupon']
         couponType = data['couponType']
+        link = data['link']
         udemyId = data['udemyId']
         dataDict = {
                     "name": title,
@@ -193,13 +200,14 @@ def get100OffCoupons():
                     "price": price,
                     "coupon": coupon,
                     "couponType":couponType,
+                    "link" : link,
                     "udemyId": udemyId
             }
         dataJson.append(dataDict)
     return jsonify(dataJson)
 
 @app.route('/Coupons/other',methods=['GET'])
-def gettherCoupons():
+def getOtherCoupons():
 
     allData = db['coupons'].find({"couponType": {"$ne": "100% OFF"}})
     dataJson = []
@@ -211,6 +219,7 @@ def gettherCoupons():
         price = data['price']
         coupon = data['coupon']
         couponType = data['couponType']
+        link = data['link']
         udemyId = data['udemyId']
         dataDict = {
                     "name": title,
@@ -220,6 +229,39 @@ def gettherCoupons():
                     "price": price,
                     "coupon": coupon,
                     "couponType":couponType,
+                    "link" : link,
+                    "udemyId": udemyId
+            }
+        dataJson.append(dataDict)
+    return jsonify(dataJson)
+
+@app.route('/Coupons/search/<search>',methods=['GET'])
+def getCouponSearch(search:string):
+
+
+    allData = db['coupons'].find({"name": {"$regex" : search , "$options" :'i'}})   
+    print(search)
+    print(allData)
+    dataJson = []
+    for data in allData:
+        title = data['name']
+        description = data['description']
+        creatorName = data['creatorName']
+        image = data['picture']
+        price = data['price']
+        coupon = data['coupon']
+        couponType = data['couponType']
+        link = data['link']
+        udemyId = data['udemyId']
+        dataDict = {
+                    "name": title,
+                    "description": description,
+                    "creator":creatorName,
+                    "picture": image,
+                    "price": price,
+                    "coupon": coupon,
+                    "couponType":couponType,
+                    "link" : link,
                     "udemyId": udemyId
             }
         dataJson.append(dataDict)
@@ -250,17 +292,11 @@ def CourseById(udemyId:string):
 
 @app.route('/Coupons/claim/<udemyId>',methods=['GET'])
 def claimCourse(udemyId:string):
-    
-    args = request.args
-    coupon = args.get('couponCode', default="",type=str)
-    link='https://www.udemy.com/api-2.0/courses/'
-    link = link + udemyId
-    response = requests.get(link,auth = HTTPBasicAuth('DmcabxNiiVj5slAK8ycd4F7Te7jySRezaZYfr4RS', 'pDdWt1Yw0bno9vMslAIAjelMIC95QuTHG3LBjB7rDUpMlpV2fkNpnQnD3MBR8QMoeAos0lzI06HSqz4lHDXflQQrYQbQdyiWJNVxqK0hjH8BQPwxYMl9BjixJTSaoTOa'))
-    data = response.json()
-    courseLink = data['url']
-    courseLink = "https://www.udemy.com" + courseLink + "?couponCode=" + coupon
-
-    return jsonify(courseLink),200
+    coupon = ""
+    allData = db['coupons'].find({"udemyId": udemyId})   
+    for data in allData:
+        coupon = data['coupon']
+    return {"coupon"  : coupon}
 
 @app.route('/Courses/Udemy',methods=['GET'])
 def getCourses():
@@ -270,10 +306,15 @@ def getCourses():
     category = args.get('category', default="",type=str)
     search = args.get('search', default="",type=str)
     language = args.get('language', default="",type=str)
+    subcategory = args.get('subcategory',default="",type=str)
+    subcategory = subcategory.replace(" ","%20")
+    subcategory = subcategory.replace("&","%26")
+    category = category.replace("&","%26")
+    category = category.replace(" ","%20")
 
     link='https://www.udemy.com/api-2.0/courses/'
-    new_link = link+"?category="+category+"&price="+price+"&search="+search+"&language="+language + "&page_size=" + "200"
-
+    new_link = link+"?category="+category+"&subcategory="+subcategory+"&price="+price+"&search="+search+"&language="+language + "&page_size=" + "200"
+    print(new_link)
     response = requests.get(new_link,auth = HTTPBasicAuth('DmcabxNiiVj5slAK8ycd4F7Te7jySRezaZYfr4RS', 'pDdWt1Yw0bno9vMslAIAjelMIC95QuTHG3LBjB7rDUpMlpV2fkNpnQnD3MBR8QMoeAos0lzI06HSqz4lHDXflQQrYQbQdyiWJNVxqK0hjH8BQPwxYMl9BjixJTSaoTOa'))
 
     final_data=[]
@@ -298,6 +339,7 @@ def getCourses():
         'id' : id,
         }
         final_data.append(json_data)
+        random.shuffle(final_data)
 
     return {'data': final_data},200
 
@@ -388,29 +430,6 @@ def deleteCoursebyId(id:string,email:string):
         db['MyCourses'].delete_one(myquery)
         return jsonify({'status': 'Data id: ' + id + ' is deleted!'})
 
-        ##BOOKS##
-@app.route('/Books/add', methods=['POST'])
-def addBook():
-
-    body = request.json
-    bookName = body['name']
-    bookPicture = body['picture']
-    bookPages = body['pages']
-    bookSize = body['size']
-    bookDownload = body['link']
-
-
-    db['Books'].insert_one({
-        "name": bookName,
-        "picture": bookPicture,
-        "pages": bookPages,
-        "size": bookSize,
-        "download": bookDownload,
-    })
-    return jsonify({
-            'status': 'Data is posted to MongoDB!',
-            'name' : bookName
-        })
 
 @app.route('/Books/all', methods=[ 'GET'])
 def getAllBooks():
@@ -433,7 +452,105 @@ def getAllBooks():
             }
             dataJson.append(dataDict)
         return jsonify(dataJson)
+    
+@app.route('/Books/add', methods=['POST'])
+def addBook():
+    # POST a data to database
+    if request.method == 'POST':
+        body = request.json
+        email = body['email']
+        name = body['name']
+        picture = body['picture']
+        download = body['download']
 
+        db['MyBooks'].insert_one({
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "download": download,
+
+        })
+        return jsonify({
+            'status': 'Data is posted to MongoDB!',
+            'name' : name
+        })
+
+@app.route('/Books/all/<Email>', methods=[ 'GET'])
+def getMyBooks(Email:string):
+    # GET all data from database
+    if request.method == 'GET':
+        allData = db['MyBooks'].find({'email' : Email})
+        dataJson = []
+        for data in allData:
+            email = data['email']
+            name = data['name']
+            download = data['download']
+            picture = data['picture']
+            dataDict = {
+                "email" : email,
+                "name": name,
+                "download": download,
+                "picture": picture,
+            }
+            dataJson.append(dataDict)
+    return jsonify(dataJson)
+
+@app.route('/Books/delete/<name>/<email>', methods=[ 'DELETE'])
+def deleteBookByName(name:string,email:string):
+    # DELETE a data
+    if request.method == 'DELETE':
+
+        myquery = {
+            "name" : name,
+            "email" : email
+            } 
+
+        db['MyBooks'].delete_one(myquery)
+        return jsonify({'status': 'Book: ' + name + ' is deleted!'})
+
+@app.route('/Books/s/<search>', methods=[ 'GET'])
+def getBookSearch(search:string):
+    URL = "https://b-ok.africa/s/"
+    newURL = URL + search + "?" + "/?extensions%5B0%5D=pdf"
+    response = requests.get(newURL)
+    soup = BeautifulSoup(response.content, 'html5lib')
+    dataJson = []
+    for i in soup.find_all("div",attrs = {"class" : "counter"}):
+        tr = soup.find_all('tr',attrs = {"class" : "bookRow"})
+        for row in tr:
+            cover = row.find("img", attrs = {"class" : "cover lazy"})
+            if cover.has_attr('data-src'):
+                cover = cover['data-src']
+            temp = row.find("a", attrs = {"style" : "text-decoration: underline;"})
+            name = temp.text
+            if temp.has_attr('href'):
+                link = temp['href']
+            link = "https://b-ok.africa"+ link
+            dataDict = {
+                "download": link,
+                "name": name,
+                "picture": cover,
+            }
+
+            dataJson.append(dataDict)
+        return jsonify(dataJson)
+
+@app.route('/trednyBooks',methods=['GET'])
+def getTreding():
+
+    allData = db['TrednyBooks'].find()
+    dataJson = []
+    for data in allData:
+        name = data['name']
+        picture = data['picture']
+        download = data['download']
+        dataDict = {
+                    "name": name,
+                    "picture": picture,
+                    "download":download,
+            }
+        dataJson.append(dataDict)
+    return jsonify(dataJson) 
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=print_date_time, trigger="interval", minutes=60)

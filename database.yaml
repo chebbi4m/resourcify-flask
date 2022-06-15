@@ -1,2 +1,3 @@
 # uri: 'mongodb://localhost:27017/Resourcify'
-uri: 'mongodb+srv://user:55554471@resourcify.dsf6l.mongodb.net/Resourcify'
+# uri: 'mongodb+srv://user:55554471@resourcify.dsf6l.mongodb.net/Resourcify'
+uri: 'mongodb+srv://Resourcify:Bamboutcha28@resourcify.b6g7f.mongodb.net/?retryWrites=true&w=majority'
