@@ -17,7 +17,7 @@ import yaml
 
 app = Flask(__name__)
 api = Api(app)
-config = yaml.safe_load(open(r'resourcify\database.yaml'))
+config = yaml.safe_load(open('database.yaml'))
 client = MongoClient(config['uri'])
 db = client['Resourcify']
 CORS (app)
